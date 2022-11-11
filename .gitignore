@@ -1,1 +1,6 @@
 homework1/__MACOSX/*
+homework1/assignment/data/*
+homework1/assignment/.idea/*
+
+*.pkl
+*.pdf

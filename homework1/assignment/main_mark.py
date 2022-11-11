@@ -21,7 +21,7 @@ def read_input(input):
             start_index = spaces_loc[spaces_loc < ind][-N]
             n_gram.append(txt[start_index: ind])
 
-    return cloze_loc[0], n_gram[0]
+    return cloze_loc, n_gram
 
 
 def solve_single(n_gram, candidates, text):
@@ -32,15 +32,21 @@ def solve_single(n_gram, candidates, text):
 
 def solve_cloze(input, candidates, lexicon, corpus):
     # todo: implement this function
-    _, n_gram = read_input(input)
+    _, n_grams = read_input(input)
+
     with open(candidates, 'r') as cand:
         candidates = list(map(lambda a: a[:-1],list(cand.readlines())))
-    #print(f'starting to solve the cloze {input} with {candidates} using {lexicon} and {corpus}')
+
+    print(f'starting to solve the cloze {input} with {candidates} using {lexicon} and {corpus}')
+
     with open(corpus, 'r', encoding="utf8") as text:
+
         start = timer()
-        print(n_gram)
-        print(candidates)
-        print(solve_single(n_gram, candidates, text))
+
+        for single_ngram in n_grams:
+            ans = solve_single(single_ngram, candidates, text)
+            candidates.remove(ans)
+
         end = timer()
         print(timedelta(seconds=end - start))
 

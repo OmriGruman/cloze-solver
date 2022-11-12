@@ -1,5 +1,6 @@
 import json
 import re
+from collections import defaultdict
 from timeit import default_timer as timer
 from datetime import timedelta
 
@@ -27,18 +28,17 @@ def tеxt_to_ngram_nested_dict(filename,n_grams, candidates):
                 print(i)
 
     return res
-
 # [t.start() for t in re.finditer('hey', s)]
 def read_input(input):
     n_gram = []
     with open(input, 'r') as text:
-        txt = text.read()
+        txt = text.read().replace('\n',' ')
         cloze_loc = [t.start() for t in re.finditer(Cloze, txt)]
         spaces_loc = np.array([t.start() for t in re.finditer(Space, txt)])
 
         for ind in cloze_loc:
             start_index = spaces_loc[spaces_loc < ind][-N]
-            n_gram.append(txt[start_index: ind])
+            n_gram.append(txt[start_index+1: ind-1])
 
     return cloze_loc, n_gram
 
@@ -58,17 +58,15 @@ def solve_cloze(input, candidates, lexicon, corpus):
 
     print(f'starting to solve the cloze {input} with {candidates} using {lexicon} and {corpus}')
 
-    with open(corpus, 'r', encoding="utf8") as text:
+    start = timer()
 
-        start = timer()
-
-        for single_ngram in n_grams:
-            ans = solve_single(single_ngram, candidates, text)
-            candidates.remove(ans)
-
-        end = timer()
-        print(timedelta(seconds=end - start))
-
+    ans = tеxt_to_ngram_nested_dict(corpus, n_grams, candidates)
+    for gram, dic in ans.items():
+        print(gram + ' :')
+        print([cand + ' : ' + str(value) for cand, value in dic.items()])
+    end = timer()
+    print(timedelta(seconds=end - start))
+    x=1
     return list()  # return your solution
 
 

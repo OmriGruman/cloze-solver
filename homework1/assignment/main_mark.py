@@ -9,6 +9,25 @@ N = 2
 Cloze = "__________"
 Space = ' '
 
+def tеxt_to_ngram_nested_dict(filename,n_grams, candidates):
+    res = defaultdict(lambda: defaultdict(int))
+
+    with open(filename, 'r', encoding='utf-8') as fin:
+        print('reading the text file...')
+        for i, line in enumerate(fin.readlines()):
+            splited_line = line.split()
+            for ind in range(len(splited_line)-N):
+                curr = ''
+                for j in range(N-1):
+                    curr += splited_line[ind+j]+' '
+                curr = curr[:-1]
+                if(curr in n_grams and splited_line[ind+N-1] in candidates):
+                    res[curr][splited_line[ind+N-1]]+=1
+            if i % 100000 == 0:
+                print(i)
+
+    return res
+
 # [t.start() for t in re.finditer('hey', s)]
 def read_input(input):
     n_gram = []

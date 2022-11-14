@@ -9,10 +9,13 @@ BLANK = '__________'
 
 
 def read_files(cloze, candidates, corpus):
+    print("Read cloze..")
     with open(cloze, 'r', encoding='utf-8') as f:
         cloze_text = f.read()
+    print("Read candidates..")
     with open(candidates, 'r', encoding='utf-8') as f:
         candidate_words = f.read().split()
+    print("Read corpus..")
     with open(corpus, 'r', encoding='utf-8') as f:
         corpus_text = f.read()
     return cloze_text, candidate_words, corpus_text
@@ -22,12 +25,15 @@ def find_cloze_preceding_words(cloze_text):
     return [match.group() for match in re.finditer(fr'(\S+\s){{{N-1}}}(?={BLANK})', cloze_text)]
 
 
-def count_ngram_ending_freqs(text, ngram_begin, candidate_words):
-    ending_freqs = defaultdict(int)
-    print(f"[{(time() - start):.2f}] LOOKING FOR {ngram_begin}")
-    for match in re.finditer(fr'(?<={ngram_begin})\S+', text):
-        if match.group() in candidate_words:
-            ending_freqs[match.group()] += 1
+def count_ngram_ending_freqs(text, ngram_beginnings, candidate_words):
+    ending_freqs = {begin: defaultdict(int) for begin in ngram_beginnings}
+
+    for match in re.finditer(fr'(\S+\s){{{N-1}}}(?=\S+)', text):
+        match = match.group()
+        beginning = match[:match.rfind(' ')+1]
+        ending = match[match.rfind(' ')+1:]
+        if beginning in ngram_beginnings and ending in candidate_words:
+            ending_freqs[beginning][ending] += 1
 
     return ending_freqs
 
@@ -38,11 +44,8 @@ def solve_cloze(cloze, candidates, lexicon, corpus):
 
     cloze_text, candidate_words, corpus_text = read_files(cloze, candidates, corpus)
     ngram_beginnings = find_cloze_preceding_words(cloze_text)
-
-    ngram_frequencies = {
-        ngram_begin: count_ngram_ending_freqs(corpus_text, ngram_begin, candidate_words)
-        for ngram_begin in ngram_beginnings
-    }
+    print(ngram_beginnings)
+    ngram_frequencies = count_ngram_ending_freqs(corpus_text, ngram_beginnings, candidate_words)
     print(ngram_frequencies)
 
     return list()  # return your solution

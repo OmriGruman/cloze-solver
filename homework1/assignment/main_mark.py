@@ -9,6 +9,11 @@ N = 4
 Cloze = "__________"
 Space = ' '
 
+
+def omri():
+    pass
+
+
 def ans_to_finale(ans):
     res = [] #{candidate : gram[i]}
     for threshhold in range(0.9,0,-0.1):

@@ -13,6 +13,29 @@ BLANK = '__________'
 PADDING = '#'
 NUM_RANDOM_PREDICTIONS = 100
 
+def best_candidate(gram,n,taken_candidates):
+    max_n_pre = min(n, N_PRE)
+    min_n_pre = max(n - N_POST, 0)
+
+    for pre in range(max_n_pre, min_n_pre - 1, -1):
+        candidates = gram[pre, n - pre]
+        np.put(candidates, taken_candidates, 0)
+        if any(candidates[candidates != 0]):
+            return np.argmax(candidates)
+    return -1
+
+def result(tensor):
+    taken_candidates = []
+    res = np.full((tensor.shape[0]),-1)
+
+    for n in range(N_PRE + N_POST, -1, -1):
+        for i_gram in range(tensor.shape[0]-1,-1,-1):
+            if res[i_gram] == -1:
+                ans = best_candidate(tensor[i_gram], n, taken_candidates)
+                res[i_gram] = ans
+                if ans !=- 1:
+                    taken_candidates.append(ans)
+    return res
 
 def find_cloze_context(cloze_text):
     cloze_text = ' '.join([PADDING] * N_PRE + [cloze_text] + [PADDING] * N_POST)
@@ -41,7 +64,7 @@ def find_context_in_window(window, context, candidate_words, probabilities):
             if sub_context == sub_window:
                 probabilities[context_i, n_pre, n_post, candidate_words.index(window[N_PRE])] += 1
 
-
+#3, 7
 def evaluate_sliding_window(window, prefixes, suffixes, candidate_words, probabilities):
     if window[N_PRE] in candidate_words:
         for context in enumerate(zip(prefixes, suffixes)):
@@ -76,7 +99,7 @@ def solve_cloze(cloze, candidates, lexicon, corpus):
     with open(cloze, 'r', encoding='utf-8') as f:
         cloze_text = f.read()
     with open(candidates, 'r', encoding='utf-8') as f:
-        candidate_words = f.read().split()
+        candidate_words = f.read().lower().split()
         print(candidate_words)
 
     prefixes, suffixes = find_cloze_context(cloze_text)
@@ -91,7 +114,8 @@ def solve_cloze(cloze, candidates, lexicon, corpus):
                     print(f'{candidate} = {probabilities[cxt, npre, npost, c]}')
 
     # todo: choose the best candidate words for each cloze, using the probabilities
-    solution = []
+
+    solution = result(probabilities)
 
     return solution  # return your solution
 
@@ -111,6 +135,7 @@ def calc_random_chance_accuracy(candidates):
 
 
 if __name__ == '__main__':
+
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
 

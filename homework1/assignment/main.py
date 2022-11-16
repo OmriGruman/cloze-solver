@@ -97,21 +97,14 @@ def solve_cloze(cloze, candidates, lexicon, corpus):
     print(f'[{(time() - start):.2f}] starting to solve the cloze {cloze} with {candidates} using {lexicon} and {corpus}')
 
     with open(cloze, 'r', encoding='utf-8') as f:
-        cloze_text = f.read()
+        cloze_text = f.read().lower()
     with open(candidates, 'r', encoding='utf-8') as f:
         candidate_words = f.read().lower().split()
-        print(candidate_words)
 
     prefixes, suffixes = find_cloze_context(cloze_text)
-    probabilities = calc_word_probabilities_by_context(corpus, prefixes, suffixes, candidate_words)
+    assert len(prefixes) == len(candidate_words), "Candidates amount and Cloze amount aren't equal"
 
-    for cxt, (pre, post) in enumerate(zip(prefixes, suffixes)):
-        print(f'================ {" ".join(pre)} {BLANK} {" ".join(post)}')
-        for npre in range(N_PRE + 1):
-            for npost in range(N_POST + 1):
-                print(f'---- {" ".join(pre[N_PRE - npre:])} {BLANK} {" ".join(post[:npost])}')
-                for c, candidate in enumerate(candidate_words):
-                    print(f'{candidate} = {probabilities[cxt, npre, npost, c]}')
+    probabilities = calc_word_probabilities_by_context(corpus, prefixes, suffixes, candidate_words)
 
     # todo: choose the best candidate words for each cloze, using the probabilities
 

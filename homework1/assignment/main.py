@@ -1,6 +1,7 @@
 import json
 import re
 import numpy as np
+from random import shuffle
 
 from time import time
 
@@ -10,6 +11,7 @@ N_PRE = 3
 N_POST = 3
 BLANK = '__________'
 PADDING = '#'
+NUM_RANDOM_PREDICTIONS = 100
 
 
 def find_cloze_context(cloze_text):
@@ -88,11 +90,24 @@ def solve_cloze(cloze, candidates, lexicon, corpus):
                 for c, candidate in enumerate(candidate_words):
                     print(f'{candidate} = {probabilities[cxt, npre, npost, c]}')
 
-    return list()  # return your solution
+    # todo: choose the best candidate words for each cloze, using the probabilities
+    solution = []
 
-# Random chance:
-# generate 100 permutations of the candidates
-# calculate mean of the accuracy of all permutations
+    return solution  # return your solution
+
+
+def calc_random_chance_accuracy(candidates):
+    with open(candidates, 'r', encoding='utf-8') as f:
+        candidate_words = f.read().split()
+
+    predictions = candidate_words.copy()
+    correct_predictions = 0.0
+
+    for i in range(NUM_RANDOM_PREDICTIONS):
+        shuffle(predictions)
+        correct_predictions += sum([pred_word == c_word for pred_word, c_word in zip(predictions, candidate_words)])
+
+    return 100 * correct_predictions / len(candidate_words) / NUM_RANDOM_PREDICTIONS
 
 
 if __name__ == '__main__':
@@ -104,4 +119,8 @@ if __name__ == '__main__':
                            config['lexicon_filename'],
                            config['corpus'])
 
-    print(f'[{(time() - start):.2f}] cloze solution:', solution)
+    print(f'[{(time() - start):.2f}] cloze solution: {solution}')
+
+    random_chance_accuracy = calc_random_chance_accuracy(config['candidates_filename'])
+
+    print(f'[{(time() - start):.2f}] random change accuracy = {random_chance_accuracy:.2f}')

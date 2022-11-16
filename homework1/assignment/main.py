@@ -64,7 +64,7 @@ def find_context_in_window(window, context, candidate_words, probabilities):
             if sub_context == sub_window:
                 probabilities[context_i, n_pre, n_post, candidate_words.index(window[N_PRE])] += 1
 
-
+#3, 7
 def evaluate_sliding_window(window, prefixes, suffixes, candidate_words, probabilities):
     if window[N_PRE] in candidate_words:
         for context in enumerate(zip(prefixes, suffixes)):
@@ -99,19 +99,19 @@ def solve_cloze(cloze, candidates, lexicon, corpus):
     with open(cloze, 'r', encoding='utf-8') as f:
         cloze_text = f.read()
     with open(candidates, 'r', encoding='utf-8') as f:
-        candidate_words = f.read().split()
+        candidate_words = f.read().lower().split()
         print(candidate_words)
 
     prefixes, suffixes = find_cloze_context(cloze_text)
     probabilities = calc_word_probabilities_by_context(corpus, prefixes, suffixes, candidate_words)
 
-    # for cxt, (pre, post) in enumerate(zip(prefixes, suffixes)):
-    #     print(f'================ {" ".join(pre)} {BLANK} {" ".join(post)}')
-    #     for npre in range(N_PRE + 1):
-    #         for npost in range(N_POST + 1):
-    #             print(f'---- {" ".join(pre[N_PRE - npre:])} {BLANK} {" ".join(post[:npost])}')
-    #             for c, candidate in enumerate(candidate_words):
-    #                 print(f'{candidate} = {probabilities[cxt, npre, npost, c]}')
+    for cxt, (pre, post) in enumerate(zip(prefixes, suffixes)):
+        print(f'================ {" ".join(pre)} {BLANK} {" ".join(post)}')
+        for npre in range(N_PRE + 1):
+            for npost in range(N_POST + 1):
+                print(f'---- {" ".join(pre[N_PRE - npre:])} {BLANK} {" ".join(post[:npost])}')
+                for c, candidate in enumerate(candidate_words):
+                    print(f'{candidate} = {probabilities[cxt, npre, npost, c]}')
 
     # todo: choose the best candidate words for each cloze, using the probabilities
 

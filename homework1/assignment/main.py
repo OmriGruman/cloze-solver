@@ -13,6 +13,29 @@ BLANK = '__________'
 PADDING = '#'
 NUM_RANDOM_PREDICTIONS = 100
 
+def best_candidate(gram,n,taken_candidates):
+    max_n_pre = min(n, N_PRE)
+    min_n_pre = max(n - N_POST, 0)
+
+    for pre in range(max_n_pre, min_n_pre - 1, -1):
+        candidates = gram[pre, n - pre]
+        np.put(candidates, taken_candidates, 0)
+        if any(candidates[candidates != 0]):
+            return np.argmax(candidates)
+    return -1
+
+def result(tensor):
+    taken_candidates = []
+    res = np.full((tensor.shape[0]),-1)
+
+    for n in range(N_PRE + N_POST, -1, -1):
+        for i_gram in range(tensor.shape[0]-1,-1,-1):
+            if res[i_gram] == -1:
+                ans = best_candidate(tensor[i_gram], n, taken_candidates)
+                res[i_gram] = ans
+                if ans !=- 1:
+                    taken_candidates.append(ans)
+    return res
 
 def find_cloze_context(cloze_text):
     cloze_text = ' '.join([PADDING] * N_PRE + [cloze_text] + [PADDING] * N_POST)
@@ -82,16 +105,17 @@ def solve_cloze(cloze, candidates, lexicon, corpus):
     prefixes, suffixes = find_cloze_context(cloze_text)
     probabilities = calc_word_probabilities_by_context(corpus, prefixes, suffixes, candidate_words)
 
-    for cxt, (pre, post) in enumerate(zip(prefixes, suffixes)):
-        print(f'================ {" ".join(pre)} {BLANK} {" ".join(post)}')
-        for npre in range(N_PRE + 1):
-            for npost in range(N_POST + 1):
-                print(f'---- {" ".join(pre[N_PRE - npre:])} {BLANK} {" ".join(post[:npost])}')
-                for c, candidate in enumerate(candidate_words):
-                    print(f'{candidate} = {probabilities[cxt, npre, npost, c]}')
+    # for cxt, (pre, post) in enumerate(zip(prefixes, suffixes)):
+    #     print(f'================ {" ".join(pre)} {BLANK} {" ".join(post)}')
+    #     for npre in range(N_PRE + 1):
+    #         for npost in range(N_POST + 1):
+    #             print(f'---- {" ".join(pre[N_PRE - npre:])} {BLANK} {" ".join(post[:npost])}')
+    #             for c, candidate in enumerate(candidate_words):
+    #                 print(f'{candidate} = {probabilities[cxt, npre, npost, c]}')
 
     # todo: choose the best candidate words for each cloze, using the probabilities
-    solution = []
+
+    solution = result(probabilities)
 
     return solution  # return your solution
 
@@ -111,6 +135,7 @@ def calc_random_chance_accuracy(candidates):
 
 
 if __name__ == '__main__':
+
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
 

@@ -13,29 +13,6 @@ BLANK = '__________'
 PADDING = '#'
 NUM_RANDOM_PREDICTIONS = 100
 
-def best_candidate(gram,n,taken_candidates):
-    max_n_pre = min(n, N_PRE)
-    min_n_pre = max(n - N_POST, 0)
-
-    for pre in range(max_n_pre, min_n_pre - 1, -1):
-        candidates = gram[pre, n - pre]
-        np.put(candidates, taken_candidates, 0)
-        if any(candidates[candidates != 0]):
-            return np.argmax(candidates)
-    return -1
-
-def result(tensor):
-    taken_candidates = []
-    res = np.full((tensor.shape[0]),-1)
-
-    for n in range(N_PRE + N_POST, -1, -1):
-        for i_gram in range(tensor.shape[0]-1,-1,-1):
-            if res[i_gram] == -1:
-                ans = best_candidate(tensor[i_gram], n, taken_candidates)
-                res[i_gram] = ans
-                if ans !=- 1:
-                    taken_candidates.append(ans)
-    return res
 
 def find_cloze_context(cloze_text):
     cloze_text = ' '.join([PADDING] * N_PRE + [cloze_text] + [PADDING] * N_POST)
@@ -64,23 +41,23 @@ def find_context_in_window(window, context, candidate_words, probabilities):
             if sub_context == sub_window:
                 probabilities[context_i, n_pre, n_post, candidate_words.index(window[N_PRE])] += 1
 
-#3, 7
+
 def evaluate_sliding_window(window, prefixes, suffixes, candidate_words, probabilities):
     if window[N_PRE] in candidate_words:
         for context in enumerate(zip(prefixes, suffixes)):
             find_context_in_window(window, context, candidate_words, probabilities)
 
 
-def calc_word_probabilities_by_context(corpus, prefixes, suffixes, candidate_words):
-    probabilities = np.zeros((len(prefixes), N_PRE + 1, N_POST + 1, len(candidate_words)))
+def calc_word_occurrences_by_context(corpus, prefixes, suffixes, candidate_words):
+    occurrences = np.zeros((len(prefixes), N_PRE + 1, N_POST + 1, len(candidate_words)))
 
     with open(corpus, 'r', encoding='utf-8') as f:
-
         window = [PADDING] * (N_PRE + 1 + N_POST)
+
         for i, line in enumerate(f):
             for word in line.split():
                 window = window[1:] + [word]
-                evaluate_sliding_window(window, prefixes, suffixes, candidate_words, probabilities)
+                evaluate_sliding_window(window, prefixes, suffixes, candidate_words, occurrences)
 
             if i % 100000 == 0:
                 print(f'[{(time() - start):.2f}] {i}')
@@ -88,9 +65,42 @@ def calc_word_probabilities_by_context(corpus, prefixes, suffixes, candidate_wor
         # scan N_POST tokens after the end of the file
         for n_post in range(N_POST):
             window = window[1:] + [PADDING]
-            evaluate_sliding_window(window, prefixes, suffixes, candidate_words, probabilities)
+            evaluate_sliding_window(window, prefixes, suffixes, candidate_words, occurrences)
 
-    return probabilities
+    return occurrences
+
+
+def find_best_candidate(current_context, context_size, taken_candidates):
+    max_n_pre = min(context_size, N_PRE)
+    min_n_pre = max(context_size - N_POST, 0)
+
+    for n_pre in range(max_n_pre, min_n_pre - 1, -1):
+        n_post = context_size - n_pre
+        candidates = current_context[n_pre, n_post]
+        np.put(candidates, taken_candidates, 0)
+
+        if any(candidates[candidates != 0]):
+            return np.argmax(candidates)
+
+    return -1
+
+
+def find_best_match(candidate_occurrences):
+    taken_candidates = []
+    best_match = np.full((candidate_occurrences.shape[0]), -1)
+
+    for context_size in range(N_PRE + N_POST, -1, -1):
+        for curr_context_i in range(candidate_occurrences.shape[0]):
+            if best_match[curr_context_i] == -1:
+                best_candidate = find_best_candidate(candidate_occurrences[curr_context_i],
+                                                     context_size,
+                                                     taken_candidates)
+                best_match[curr_context_i] = best_candidate
+
+                if best_candidate != -1:
+                    taken_candidates.append(best_candidate)
+
+    return best_match
 
 
 def solve_cloze(cloze, candidates, lexicon, corpus):
@@ -104,13 +114,14 @@ def solve_cloze(cloze, candidates, lexicon, corpus):
     prefixes, suffixes = find_cloze_context(cloze_text)
     assert len(prefixes) == len(candidate_words), "Candidates amount and Cloze amount aren't equal"
 
-    probabilities = calc_word_probabilities_by_context(corpus, prefixes, suffixes, candidate_words)
+    word_occurrences = calc_word_occurrences_by_context(corpus, prefixes, suffixes, candidate_words)
+    best_match = find_best_match(word_occurrences)
 
-    # todo: choose the best candidate words for each cloze, using the probabilities
+    return np.array(candidate_words)[np.array(best_match)]
 
-    solution = result(probabilities)
 
-    return solution  # return your solution
+def calc_prediction_accuracy(prediction, correct_words):
+    return 100 * sum([pred_word == c_word for pred_word, c_word in zip(prediction, correct_words)]) / len(prediction)
 
 
 def calc_random_chance_accuracy(candidates):
@@ -118,17 +129,16 @@ def calc_random_chance_accuracy(candidates):
         candidate_words = f.read().split()
 
     predictions = candidate_words.copy()
-    correct_predictions = 0.0
+    sum_accuracies = 0.0
 
     for i in range(NUM_RANDOM_PREDICTIONS):
         shuffle(predictions)
-        correct_predictions += sum([pred_word == c_word for pred_word, c_word in zip(predictions, candidate_words)])
+        sum_accuracies += calc_prediction_accuracy(predictions, candidate_words)
 
-    return 100 * correct_predictions / len(candidate_words) / NUM_RANDOM_PREDICTIONS
+    return sum_accuracies / NUM_RANDOM_PREDICTIONS
 
 
 if __name__ == '__main__':
-
     with open('config.json', 'r') as json_file:
         config = json.load(json_file)
 
@@ -138,6 +148,11 @@ if __name__ == '__main__':
                            config['corpus'])
 
     print(f'[{(time() - start):.2f}] cloze solution: {solution}')
+
+    with open(config['candidates_filename'], 'r', encoding='utf-8') as f:
+        candidate_words = f.read().lower().split()
+
+    print(f'[{(time() - start):.2f}] solution accuracy: {calc_prediction_accuracy(solution, candidate_words):.2f}%')
 
     random_chance_accuracy = calc_random_chance_accuracy(config['candidates_filename'])
 
